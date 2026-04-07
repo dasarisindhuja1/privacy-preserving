@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Privacy Query Interface</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-dark bg-dark sticky-top">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">
+                <i class="fas fa-shield-alt me-2"></i>Privacy Query Interface
+            </span>
+            <div class="d-flex align-items-center">
+                <span class="text-light me-3">
+                    👤 <strong>{{ username }}</strong>
+                </span>
+                <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm">
+                    <i class="fas fa-sign-out-alt me-1"></i>Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav class="col-md-2 d-md-block bg-light sidebar" style="min-height: calc(100vh - 56px);">
+                <div class="position-sticky pt-3">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="#" data-tab="query">
+                                <i class="fas fa-comments me-2"></i>New Query
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" data-tab="history">
+                                <i class="fas fa-history me-2"></i>Query History
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" data-tab="guide">
+                                <i class="fas fa-book me-2"></i>How It Works
+                            </a>
+                        </li>
+                    </ul>
+
+                    <hr>
+
+                    <div class="p-3 bg-info-subtle rounded">
+                        <h6 class="mb-2">🔍 PII Detection</h6>
+                        <small class="text-muted">
+                            Supports text queries and file uploads (TXT, PDF, DOCX).<br>
+                            Detects and masks:
+                            <ul style="margin-top: 8px; padding-left: 15px; margin-bottom: 0;">
+                                <li>Names, Emails, Phones</li>
+                                <li>ID Numbers (Aadhaar, PAN)</li>
+                                <li>Credit/Debit Cards</li>
+                                <li>Passwords & API Keys</li>
+                                <li>Locations & Organizations</li>
+                            </ul>
+                        </small>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- Main Content -->
+            <main class="col-md-10 ms-sm-auto px-md-4 py-4">
+                <!-- Query Tab -->
+                <div class="tab-content" id="query-tab" style="display: block;">
+                    <div class="row">
+                        <div class="col-lg-6">
+                            <!-- Query Input Section -->
+                            <div class="card mb-4">
+                                <div class="card-header bg-primary text-white">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-pencil me-2"></i>Enter Your Query
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <form id="query-form" enctype="multipart/form-data">
+                                        <!-- Query Type Selection -->
+                                        <div class="mb-3">
+                                            <label class="form-label">Input Type</label>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="input-type" id="text-input" value="text" checked>
+                                                <label class="form-check-label" for="text-input">
+                                                    Text Query
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="input-type" id="file-input" value="file">
+                                                <label class="form-check-label" for="file-input">
+                                                    Upload File (TXT, PDF, DOCX)
+                                                </label>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Text Input -->
+                                        <div id="text-input-section" class="mb-3">
+                                            <label for="query-input" class="form-label">
+                                                Your Query (with or without PII)
+                                            </label>
+                                            <textarea 
+                                                id="query-input"
+                                                name="query"
+                                                class="form-control"
+                                                rows="5"
+                                                placeholder="Example: My name is John Doe, my email is john@example.com, and I live in New York. What is the weather like?"
+                                            ></textarea>
+                                            <small class="text-muted d-block mt-2">
+                                                💡 Don't worry about sensitive data - we'll mask it before sending to AI
+                                            </small>
+                                        </div>
+                                        
+                                        <!-- File Input -->
+                                        <div id="file-input-section" class="mb-3" style="display: none;">
+                                            <label for="file-input-field" class="form-label">
+                                                Upload File
+                                            </label>
+                                            <input 
+                                                type="file" 
+                                                id="file-input-field"
+                                                name="file"
+                                                class="form-control"
+                                                accept=".txt,.pdf,.docx"
+                                            >
+                                            <small class="text-muted d-block mt-2">
+                                                Supported formats: TXT, PDF, DOCX. File content will be scanned for PII.
+                                            </small>
+                                        </div>
+                                        
+                                        <button type="submit" class="btn btn-primary w-100">
+                                            <i class="fas fa-paper-plane me-2"></i>Submit Query
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-6">
+                            <!-- Risk Score Card -->
+                            <div class="card mb-4" id="risk-card" style="display: none;">
+                                <div class="card-header bg-warning text-dark">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>Privacy Risk Score
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="risk-score-container text-center mb-3">
+                                        <div class="risk-score-circle" id="risk-score-display">
+                                            <span class="risk-value">-</span>
+                                            <span class="risk-label">/100</span>
+                                        </div>
+                                    </div>
+                                    <div class="progress mb-3" style="height: 25px;">
+                                        <div id="risk-bar" class="progress-bar" role="progressbar" 
+                                             style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                                        </div>
+                                    </div>
+                                    <p class="mb-2"><strong>Risk Level:</strong> <span id="risk-level">-</span></p>
+                                    <p class="mb-0"><strong>Color Coding:</strong></p>
+                                    <div class="mt-2">
+                                        <span class="badge bg-success">Green: 0-30 (Low)</span>
+                                        <span class="badge bg-warning">Yellow: 31-70 (Medium)</span>
+                                        <span class="badge bg-danger">Red: 71-100 (High)</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Detected Entities Card -->
+                            <div class="card" id="entities-card" style="display: none;">
+                                <div class="card-header bg-info text-white">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-search me-2"></i>Detected PII
+                                    </h5>
+                                </div>
+                                <div class="card-body" id="entities-list">
+                                    <p class="text-muted">No entities detected yet...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Results Section -->
+                    <div class="row" id="results-section" style="display: none;">
+                        <div class="col-lg-6">
+                            <!-- Masked Query Card -->
+                            <div class="card mb-4">
+                                <div class="card-header bg-secondary text-white">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-eye-slash me-2"></i>Masked Query (Sent to AI)
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div id="masked-query" class="bg-light p-3 rounded mb-2" 
+                                         style="border: 1px solid #ddd; min-height: 100px; white-space: pre-wrap; word-break: break-word;">
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="copyToClipboard('masked-query')">
+                                        <i class="fas fa-copy me-1"></i>Copy
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- AI Response (Masked) Card -->
+                            <div class="card mb-4">
+                                <div class="card-header bg-secondary text-white">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-robot me-2"></i>AI Response (Original)
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div id="ai-response" class="bg-light p-3 rounded mb-2"
+                                         style="border: 1px solid #ddd; min-height: 100px; white-space: pre-wrap; word-break: break-word;">
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="copyToClipboard('ai-response')">
+                                        <i class="fas fa-copy me-1"></i>Copy
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-6">
+                            <!-- Original Query Card -->
+                            <div class="card mb-4">
+                                <div class="card-header bg-success text-white">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-eye me-2"></i>Original Query (For Reference)
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div id="original-query" class="bg-light p-3 rounded mb-2"
+                                         style="border: 1px solid #ddd; min-height: 100px; white-space: pre-wrap; word-break: break-word;">
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="copyToClipboard('original-query')">
+                                        <i class="fas fa-copy me-1"></i>Copy
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Unmasked Response Card -->
+                            <div class="card mb-4">
+                                <div class="card-header bg-success text-white">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-check me-2"></i>Final Response (Unmasked)
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div id="unmasked-response" class="bg-light p-3 rounded mb-2"
+                                         style="border: 1px solid #ddd; min-height: 100px; white-space: pre-wrap; word-break: break-word;">
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="copyToClipboard('unmasked-response')">
+                                        <i class="fas fa-copy me-1"></i>Copy
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- History Tab -->
+                <div class="tab-content" id="history-tab" style="display: none;">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-history me-2"></i>Query History
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="history-list" class="table-responsive">
+                                <p class="text-muted">Loading history...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Guide Tab -->
+                <div class="tab-content" id="guide-tab" style="display: none;">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-book me-2"></i>How It Works
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="mb-3">🔒 Privacy Protection Process</h6>
+                                    <ol>
+                                        <li><strong>You submit a query</strong> - Include any information you want</li>
+                                        <li><strong>PII Detection</strong> - System detects sensitive data:
+                                            <ul>
+                                                <li>Names (PERSON)</li>
+                                                <li>Organizations (ORG)</li>
+                                                <li>Locations (GPE, LOC)</li>
+                                                <li>Emails & Phones</li>
+                                                <li>ID Numbers (Aadhaar, PAN, SSN)</li>
+                                                <li>Passwords & API Keys</li>
+                                                <li>Credit/Debit Cards</li>
+                                                <li>And more...</li>
+                                            </ul>
+                                        </li>
+                                        <li><strong>Masking</strong> - PII replaced with placeholders
+                                            <ul>
+                                                <li>john@example.com → [EMAIL]</li>
+                                                <li>+91 9876543210 → [PHONE]</li>
+                                                <li>John Doe → [NAME]</li>
+                                            </ul>
+                                        </li>
+                                        <li><strong>Risk Calculation</strong> - Privacy risk score computed</li>
+                                        <li><strong>AI Processing</strong> - Masked query sent to Llama 3 via Ollama</li>
+                                        <li><strong>Unmasking</strong> - Response restored with original values</li>
+                                        <li><strong>Results Display</strong> - You see the final, unmasked response</li>
+                                    </ol>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="mb-3">⚙️ Risk Score Calculation</h6>
+                                    <p><strong>Formula:</strong> Risk Score = Σ (weight × count)</p>
+                                    <p><strong>Weights by Data Type:</strong></p>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <tr>
+                                                <td><strong>Password/API Key</strong></td>
+                                                <td><span class="badge bg-danger">50</span></td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Aadhaar/PAN/SSN</strong></td>
+                                                <td><span class="badge bg-danger">40-45</span></td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Credit/Debit Card</strong></td>
+                                                <td><span class="badge bg-warning">35</span></td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Email/Phone</strong></td>
+                                                <td><span class="badge bg-warning">30</span></td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Name/Org/Location</strong></td>
+                                                <td><span class="badge bg-info">20</span></td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>IP Address</strong></td>
+                                                <td><span class="badge bg-info">10</span></td>
+                                            </tr>
+                                        </table>
+                                    </div>
+
+                                    <hr>
+
+                                    <h6 class="mb-3">📊 Why This Matters</h6>
+                                    <ul>
+                                        <li>✅ <strong>User Privacy:</strong> PII never sent to external AI</li>
+                                        <li>✅ <strong>Data Security:</strong> Sensitive info stays with you</li>
+                                        <li>✅ <strong>Compliance:</strong> Reduces GDPR/privacy law risks</li>
+                                        <li>✅ <strong>Trust:</strong> Users know their data is protected</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loading-spinner" class="loading-spinner" style="display: none;">
+        <div class="spinner"></div>
+        <p>Processing your query...</p>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="position-fixed bottom-0 end-0 p-3">
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
