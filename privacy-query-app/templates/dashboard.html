@@ -72,8 +72,8 @@
             <main class="col-md-10 ms-sm-auto px-md-4 py-4">
                 <!-- Query Tab -->
                 <div class="tab-content" id="query-tab" style="display: block;">
-                    <div class="row">
-                        <div class="col-lg-6">
+                    <div class="row g-4 align-items-start">
+                        <div class="col-12">
                             <!-- Query Input Section -->
                             <div class="card mb-4">
                                 <div class="card-header bg-primary text-white">
@@ -141,10 +141,12 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
 
-                        <div class="col-lg-6">
+                    <div class="row g-4 align-items-stretch equal-height-row">
+                        <div class="col-lg-6 d-flex">
                             <!-- Risk Score Card -->
-                            <div class="card mb-4" id="risk-card" style="display: none;">
+                            <div class="card h-100 w-100" id="risk-card" style="display: none;">
                                 <div class="card-header bg-warning text-dark">
                                     <h5 class="mb-0">
                                         <i class="fas fa-exclamation-triangle me-2"></i>Privacy Risk Score
@@ -171,9 +173,11 @@
                                     </div>
                                 </div>
                             </div>
+                        </div>
 
+                        <div class="col-lg-6 d-flex">
                             <!-- Detected Entities Card -->
-                            <div class="card" id="entities-card" style="display: none;">
+                            <div class="card h-100 w-100" id="entities-card" style="display: none;">
                                 <div class="card-header bg-info text-white">
                                     <h5 class="mb-0">
                                         <i class="fas fa-search me-2"></i>Detected PII
@@ -186,27 +190,44 @@
                         </div>
                     </div>
 
-                    <!-- Results Section -->
-                    <div class="row" id="results-section" style="display: none;">
-                        <div class="col-lg-6">
-                            <!-- Masked Query Card -->
-                            <div class="card mb-4">
-                                <div class="card-header bg-secondary text-white">
+                    <div class="row g-4 results-section" id="results-section" style="display: none;">
+                        <div class="col-12">
+                            <div class="card mb-4 result-card" id="mapping-card">
+                                <div class="card-header bg-info text-white">
                                     <h5 class="mb-0">
-                                        <i class="fas fa-eye-slash me-2"></i>Masked Query (Sent to AI)
+                                        <i class="fas fa-exchange-alt me-2"></i>Privacy Mapping Table
                                     </h5>
                                 </div>
                                 <div class="card-body">
-                                    <div id="masked-query" class="bg-light p-3 rounded mb-2" 
+                                    <div id="mapping-table" class="table-responsive">
+                                        <p class="text-muted">No privacy mappings were applied</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <div class="card mb-4">
+                                <div class="card-header bg-secondary text-white d-flex align-items-center justify-content-between">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-eye-slash me-2"></i>Masked Query (Sent to AI)
+                                    </h5>
+                                    <button class="btn btn-sm btn-outline-light" id="toggle-masked-btn" onclick="toggleMaskedVisibility()" title="Toggle masked query visibility">
+                                        <i class="fas fa-eye" id="masked-eye-icon"></i>
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <div id="masked-query" class="bg-light p-3 rounded mb-2 masked-content blurred w-100" 
                                          style="border: 1px solid #ddd; min-height: 100px; white-space: pre-wrap; word-break: break-word;">
                                     </div>
-                                    <button class="btn btn-sm btn-outline-secondary" onclick="copyToClipboard('masked-query')">
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="copyToClipboard('masked-query')" id="copy-masked-btn" style="display: none;">
                                         <i class="fas fa-copy me-1"></i>Copy
                                     </button>
                                 </div>
                             </div>
+                        </div>
 
-                            <!-- AI Response (Masked) Card -->
+                        <div class="col-12">
                             <div class="card mb-4">
                                 <div class="card-header bg-secondary text-white">
                                     <h5 class="mb-0">
@@ -214,7 +235,7 @@
                                     </h5>
                                 </div>
                                 <div class="card-body">
-                                    <div id="ai-response" class="bg-light p-3 rounded mb-2"
+                                    <div id="ai-response" class="bg-light p-3 rounded mb-2 w-100"
                                          style="border: 1px solid #ddd; min-height: 100px; white-space: pre-wrap; word-break: break-word;">
                                     </div>
                                     <button class="btn btn-sm btn-outline-secondary" onclick="copyToClipboard('ai-response')">
@@ -224,8 +245,7 @@
                             </div>
                         </div>
 
-                        <div class="col-lg-6">
-                            <!-- Original Query Card -->
+                        <div class="col-12">
                             <div class="card mb-4">
                                 <div class="card-header bg-success text-white">
                                     <h5 class="mb-0">
@@ -233,7 +253,7 @@
                                     </h5>
                                 </div>
                                 <div class="card-body">
-                                    <div id="original-query" class="bg-light p-3 rounded mb-2"
+                                    <div id="original-query" class="bg-light p-3 rounded mb-2 w-100"
                                          style="border: 1px solid #ddd; min-height: 100px; white-space: pre-wrap; word-break: break-word;">
                                     </div>
                                     <button class="btn btn-sm btn-outline-secondary" onclick="copyToClipboard('original-query')">
@@ -241,8 +261,9 @@
                                     </button>
                                 </div>
                             </div>
+                        </div>
 
-                            <!-- Unmasked Response Card -->
+                        <div class="col-12">
                             <div class="card mb-4">
                                 <div class="card-header bg-success text-white">
                                     <h5 class="mb-0">
@@ -250,7 +271,7 @@
                                     </h5>
                                 </div>
                                 <div class="card-body">
-                                    <div id="unmasked-response" class="bg-light p-3 rounded mb-2"
+                                    <div id="unmasked-response" class="bg-light p-3 rounded mb-2 w-100"
                                          style="border: 1px solid #ddd; min-height: 100px; white-space: pre-wrap; word-break: break-word;">
                                     </div>
                                     <button class="btn btn-sm btn-outline-secondary" onclick="copyToClipboard('unmasked-response')">

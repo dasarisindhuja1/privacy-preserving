@@ -22,10 +22,12 @@ class NLPDetector:
         """
         try:
             self.nlp = spacy.load(model_name)
-        except OSError:
-            raise RuntimeError(
-                f"Model '{model_name}' not found. Install with: python -m spacy download {model_name}"
-            )
+            self.available = True
+        except (OSError, RuntimeError) as e:
+            print(f"Warning: SpaCy model '{model_name}' not available: {e}")
+            print("NLP-based PII detection will be disabled.")
+            self.nlp = None
+            self.available = False
     
     def detect_entities(self, text: str) -> Dict[str, List[Dict]]:
         """
@@ -43,6 +45,9 @@ class NLPDetector:
                 'LOC': [...]
             }
         """
+        if not self.available:
+            return {}
+        
         doc = self.nlp(text)
         
         entities = {

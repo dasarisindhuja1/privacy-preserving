@@ -183,18 +183,24 @@ function displayResults(data) {
     document.getElementById('results-section').style.display = 'block';
     document.getElementById('risk-card').style.display = 'block';
     document.getElementById('entities-card').style.display = 'block';
+    document.getElementById('mapping-card').style.display = 'block';
 
     // Display original query
     document.getElementById('original-query').textContent = data.original_query;
 
     // Display masked query
-    document.getElementById('masked-query').textContent = data.masked_query;
+    const maskedQueryElement = document.getElementById('masked-query');
+    maskedQueryElement.textContent = data.masked_query;
+    setMaskedBlurred(true);
 
     // Display risk score
     updateRiskScore(data.risk_score, data.risk_color);
 
     // Display detected entities
     displayDetectedEntities(data.detected_entities);
+
+    // Display mapping table
+    displayMappingTable(data.reverse_mapping);
 
     // Display AI response
     document.getElementById('ai-response').textContent = data.ai_response;
@@ -216,16 +222,22 @@ function displayPartialResults(data) {
     document.getElementById('results-section').style.display = 'block';
     document.getElementById('risk-card').style.display = 'block';
     document.getElementById('entities-card').style.display = 'block';
+    document.getElementById('mapping-card').style.display = 'block';
 
     // Display available data
     document.getElementById('original-query').textContent = data.original_query || 'N/A';
-    document.getElementById('masked-query').textContent = data.masked_query || 'N/A';
+    const maskedQueryElement = document.getElementById('masked-query');
+    maskedQueryElement.textContent = data.masked_query || 'N/A';
+    setMaskedBlurred(true);
 
     // Display risk score
     updateRiskScore(data.risk_score, data.risk_color);
 
     // Display detected entities
     displayDetectedEntities(data.detected_entities || {});
+
+    // Display mapping table
+    displayMappingTable(data.reverse_mapping || {});
 
     // Display error message
     document.getElementById('ai-response').textContent = `Error: ${data.error}`;
@@ -275,6 +287,26 @@ function displayDetectedEntities(entities) {
     const entitiesContainer = document.getElementById('entities-list');
     entitiesContainer.innerHTML = '';
 
+    const weights = {
+        EMAIL: 30,
+        PHONE: 30,
+        AADHAAR: 40,
+        PAN: 40,
+        SSN: 45,
+        PASSWORD: 50,
+        API_KEY: 50,
+        CREDIT_CARD: 35,
+        DEBIT_CARD: 35,
+        BANK_ACCOUNT: 35,
+        PERSON: 20,
+        ORG: 20,
+        GPE: 20,
+        LOC: 20,
+        DATE_OF_BIRTH: 25,
+        IP_ADDRESS: 10,
+        OTHER: 10
+    };
+
     // Count total entities
     let totalCount = 0;
     for (const key in entities) {
@@ -293,12 +325,15 @@ function displayDetectedEntities(entities) {
 
     for (const [entityType, items] of Object.entries(entities)) {
         if (Array.isArray(items) && items.length > 0) {
+            const typeWeight = weights[entityType] || weights.OTHER;
             html += '<div class="entity-section">';
-            html += `<h6><i class="fas fa-circle-exclamation me-2"></i>${entityType}</h6>`;
+            html += `<h6><i class="fas fa-circle-exclamation me-2"></i>${entityType} <span class="badge bg-secondary">Weight ${typeWeight}</span></h6>`;
 
             items.forEach(item => {
-                html += `<div class="entity-item">
-                    • <code>${escapeHtml(item.text)}</code>
+                const itemWeight = weights[entityType] || weights.OTHER;
+                html += `<div class="entity-item d-flex align-items-center justify-content-between">
+                    <span class="entity-text"><code>${escapeHtml(item.text)}</code></span>
+                    <span class="badge bg-dark">${itemWeight}</span>
                 </div>`;
             });
 
@@ -307,6 +342,39 @@ function displayDetectedEntities(entities) {
     }
 
     entitiesContainer.innerHTML = html;
+}
+
+// =====================================================================
+// MAPPING TABLE DISPLAY
+// =====================================================================
+
+function displayMappingTable(mapping) {
+    const mappingContainer = document.getElementById('mapping-table');
+    document.getElementById('mapping-card').style.display = 'block';
+
+    if (!mapping || Object.keys(mapping).length === 0) {
+        mappingContainer.innerHTML = '<p class="text-muted">No privacy mappings were applied</p>';
+        return;
+    }
+
+    let html = '<table class="table table-sm table-striped">';
+    html += '<thead class="table-dark">';
+    html += '<tr>';
+    html += '<th><i class="fas fa-mask me-1"></i>Masked Value</th>';
+    html += '<th><i class="fas fa-unlock me-1"></i>Original Value</th>';
+    html += '</tr>';
+    html += '</thead>';
+    html += '<tbody>';
+
+    for (const [masked, original] of Object.entries(mapping)) {
+        html += '<tr>';
+        html += `<td><code class="text-danger">${escapeHtml(masked)}</code></td>`;
+        html += `<td><code class="text-success">${escapeHtml(original)}</code></td>`;
+        html += '</tr>';
+    }
+
+    html += '</tbody></table>';
+    mappingContainer.innerHTML = html;
 }
 
 // =====================================================================
@@ -353,8 +421,11 @@ function displayHistory(history) {
             <td><span class="badge bg-${riskClass}">${query.risk_score.toFixed(1)}</span></td>
             <td>${date}</td>
             <td>
-                <button class="btn btn-sm btn-outline-primary" onclick="viewQueryDetail(${query.id})">
+                <button class="btn btn-sm btn-outline-primary me-1" onclick="viewQueryDetail(${query.id})">
                     <i class="fas fa-eye me-1"></i>View
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteQuery(${query.id})">
+                    <i class="fas fa-trash-alt me-1"></i>Delete
                 </button>
             </td>
         </tr>`;
@@ -371,10 +442,6 @@ function viewQueryDetail(queryId) {
             if (data.success) {
                 // Display in main query section
                 document.getElementById('query-input').value = data.original_query;
-
-                // Hide risk and entity cards temporarily
-                document.getElementById('risk-card').style.display = 'none';
-                document.getElementById('entities-card').style.display = 'none';
 
                 // Display results
                 displayResults({
@@ -394,6 +461,32 @@ function viewQueryDetail(queryId) {
             }
         })
         .catch(error => console.error('Error loading query detail:', error));
+}
+
+function deleteQuery(queryId) {
+    if (!confirm('Delete this history entry? This action cannot be undone.')) {
+        return;
+    }
+
+    fetch(`/api/query/${queryId}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('History entry deleted', 'success');
+            loadQueryHistory();
+        } else {
+            showToast(`Failed to delete entry: ${data.error}`, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting history entry:', error);
+        showToast('Error deleting history entry', 'danger');
+    });
 }
 
 // =====================================================================
@@ -487,6 +580,43 @@ function escapeHtml(text) {
 
 function capitalizeFirst(str) {
     return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+// =====================================================================
+// MASKED CONTENT TOGGLE
+// =====================================================================
+
+function toggleMaskedVisibility() {
+    const maskedContent = document.getElementById('masked-query');
+    const eyeIcon = document.getElementById('masked-eye-icon');
+    const copyBtn = document.getElementById('copy-masked-btn');
+
+    const isBlurred = maskedContent.classList.contains('blurred');
+    setMaskedBlurred(!isBlurred);
+
+    if (isBlurred) {
+        eyeIcon.className = 'fas fa-eye-slash';
+        copyBtn.style.display = 'inline-block';
+    } else {
+        eyeIcon.className = 'fas fa-eye';
+        copyBtn.style.display = 'none';
+    }
+}
+
+function setMaskedBlurred(blurred) {
+    const maskedContent = document.getElementById('masked-query');
+    const eyeIcon = document.getElementById('masked-eye-icon');
+    const copyBtn = document.getElementById('copy-masked-btn');
+
+    if (blurred) {
+        maskedContent.classList.add('blurred');
+        eyeIcon.className = 'fas fa-eye';
+        copyBtn.style.display = 'none';
+    } else {
+        maskedContent.classList.remove('blurred');
+        eyeIcon.className = 'fas fa-eye-slash';
+        copyBtn.style.display = 'inline-block';
+    }
 }
 
 // =====================================================================

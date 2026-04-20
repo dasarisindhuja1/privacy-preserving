@@ -164,7 +164,7 @@ def get_risk_color(score: float) -> str:
         return 'red'
 
 
-def mask_text(text: str, regex_entities: dict, nlp_entities: dict) -> tuple[str, dict]:
+def mask_text(text: str, regex_entities: dict, nlp_entities: dict) -> tuple:
     """
     Mask all detected PII in text.
     
@@ -179,14 +179,53 @@ def mask_text(text: str, regex_entities: dict, nlp_entities: dict) -> tuple[str,
     masker.clear()
     masked = text
     all_entities = {}
+    masked_ranges = []
     
-    # Process regex-detected entities
+    # Priority order for overlapping matches (higher priority = more specific)
+    priority_order = {
+        'PHONE': 10,
+        'EMAIL': 9,
+        'AADHAAR': 8,
+        'PAN': 7,
+        'CREDIT_CARD': 6,
+        'DEBIT_CARD': 6,
+        'SSN': 5,
+        'PASSWORD': 4,
+        'API_KEY': 4,
+        'BANK_ACCOUNT': 1,  # Lowest priority - most generic
+        'IP_ADDRESS': 2,
+        'DATE_OF_BIRTH': 3,
+    }
+    
+    # Combine and sort regex-detected entities globally by start position.
+    regex_matches = []
     for entity_type, items in regex_entities.items():
         all_entities[entity_type] = items
-        # Sort by position (reverse) to avoid index shifting
-        for item in sorted(items, key=lambda x: x['start'], reverse=True):
-            placeholder = masker.mask_entity(item['text'], entity_type)
-            masked = masked[:item['start']] + placeholder + masked[item['end']:]
+        regex_matches.extend([{
+            'text': item['text'],
+            'start': item['start'],
+            'end': item['end'],
+            'type': entity_type,
+            'priority': priority_order.get(entity_type, 0)
+        } for item in items])
+    
+    # Sort by start position (reverse), then by priority (higher first)
+    regex_matches.sort(key=lambda x: (x['start'], x['end'], x['priority']), reverse=True)
+    
+    processed_matches = []
+    for item in regex_matches:
+        # Check if this exact range has already been processed
+        range_key = (item['start'], item['end'])
+        if range_key in [r['range'] for r in processed_matches]:
+            continue
+            
+        placeholder = masker.mask_entity(item['text'], item['type'])
+        masked = masked[:item['start']] + placeholder + masked[item['end']:]
+        processed_matches.append({
+            'range': range_key,
+            'type': item['type'],
+            'text': item['text']
+        })
     
     # Process NLP-detected entities
     for entity_type, items in nlp_entities.items():
@@ -195,14 +234,55 @@ def mask_text(text: str, regex_entities: dict, nlp_entities: dict) -> tuple[str,
             # Note: NLP positions are based on original text, may need adjustment
             # For safety, we'll mask by text replacement (may have false positives)
             for item in items:
-                # Skip if already masked by regex
                 if item['text'] in masker.mask_map:
                     continue
                 placeholder = masker.mask_entity(item['text'], entity_type)
-                # Simple replacement (risky but safer for this implementation)
                 masked = masked.replace(item['text'], placeholder, 1)
     
     return masked, all_entities
+
+
+def filter_nlp_entities(nlp_entities: dict, regex_entities: dict) -> dict:
+    """
+    Filter NLP-detected entities to remove false positives and overlaps with regex PII.
+    """
+    excluded_person_labels = {
+        'mobile', 'mobileno', 'mobile no', 'mobile number', 'phone', 'phone no',
+        'phone number', 'email', 'address', 'name', 'dob', 'date of birth',
+        'password', 'api key', 'token', 'secret'
+    }
+
+    regex_texts = {
+        item['text'].strip().lower()
+        for items in regex_entities.values()
+        for item in items
+    }
+
+    filtered = {}
+    for entity_type, items in nlp_entities.items():
+        kept = []
+        for item in items:
+            text = item.get('text', '').strip()
+            lower_text = text.lower()
+
+            if not text:
+                continue
+
+            if entity_type == 'PERSON':
+                if lower_text in excluded_person_labels:
+                    continue
+                if any(char.isdigit() for char in text):
+                    continue
+
+            if lower_text in regex_texts:
+                continue
+
+            kept.append(item)
+
+        if kept:
+            filtered[entity_type] = kept
+
+    return filtered
 
 
 def extract_text_from_file(file) -> str:
@@ -248,7 +328,7 @@ def extract_text_from_file(file) -> str:
         raise ValueError("Unsupported file type. Supported: TXT, PDF, DOCX")
 
 
-def call_ollama_api(masked_query: str, timeout: int = 60) -> tuple[bool, str]:
+def call_ollama_api(masked_query: str, timeout: int = 60) -> tuple:
     """
     Call Ollama API with masked query.
     
@@ -450,10 +530,10 @@ def api_query():
         if nlp_detector:
             try:
                 nlp_entities = nlp_detector.detect_entities(original_query)
+                nlp_entities = filter_nlp_entities(nlp_entities, regex_entities)
             except Exception as e:
                 print(f"NLP detection error: {e}")
-        
-        # Add passwords to entities
+
         if regex_passwords:
             regex_entities['PASSWORD'] = regex_passwords
         
@@ -506,7 +586,8 @@ def api_query():
                 'detected_entities': all_entities,
                 'ai_response': ai_response,
                 'unmasked_response': unmasked_response,
-                'mapping': masker.get_mapping()
+                'mapping': masker.get_mapping(),
+                'reverse_mapping': masker.get_reverse_mapping()
             }), 200
         else:
             return jsonify({
@@ -589,6 +670,34 @@ def api_query_detail(query_id):
         }), 200
     
     except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/query/<int:query_id>', methods=['DELETE'])
+@login_required
+def api_query_delete(query_id):
+    """Delete a specific query from the user's history."""
+    try:
+        query = Query.query.filter_by(id=query_id, user_id=current_user.id).first()
+        if not query:
+            return jsonify({
+                'success': False,
+                'error': 'Query not found'
+            }), 404
+
+        db.session.delete(query)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Query deleted successfully'
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
         return jsonify({
             'success': False,
             'error': str(e)

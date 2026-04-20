@@ -206,6 +206,48 @@ textarea.form-control {
     color: white;
 }
 
+.masked-content {
+    position: relative;
+    overflow: hidden;
+    transition: filter 0.25s ease, opacity 0.25s ease;
+}
+
+.masked-content.blurred {
+    filter: blur(10px);
+    user-select: none;
+    pointer-events: none;
+}
+
+.masked-content.blurred::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.25);
+    pointer-events: none;
+}
+
+#toggle-masked-btn {
+    min-width: 46px;
+}
+
+#copy-masked-btn {
+    margin-top: 0.5rem;
+}
+
+.results-section .result-card,
+.results-section .card {
+    width: 100%;
+    max-width: 100%;
+}
+
+.results-section .table-responsive,
+.results-section .masked-content,
+.results-section #ai-response,
+.results-section #original-query,
+.results-section #unmasked-response {
+    width: 100%;
+}
+
 .entity-section {
     margin-bottom: 15px;
 }
@@ -219,9 +261,61 @@ textarea.form-control {
 }
 
 .entity-item {
-    padding: 0.5rem 0;
-    color: #6b7280;
-    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.5rem;
+    border-radius: 10px;
+    background-color: #f3f4f6;
+    color: #374151;
+    font-size: 0.95rem;
+    width: 100%;
+}
+
+.entity-item:last-child {
+    margin-bottom: 0;
+}
+
+.entity-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.entity-item code {
+    display: inline-block;
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: inherit;
+    font-size: 0.95rem;
+    padding: 0;
+}
+
+.entity-item .badge {
+    min-width: 50px;
+    text-align: center;
+}
+
+/* =====================================================================
+   EQUAL HEIGHT CARDS
+   ===================================================================== */
+
+.equal-height-row .col-lg-6 {
+    display: flex;
+}
+
+.equal-height-row .card {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.equal-height-row .card-body {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
 }
 
 /* =====================================================================

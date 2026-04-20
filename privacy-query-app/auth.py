@@ -141,7 +141,7 @@ def signup_user(username: str, password: str) -> tuple[bool, str]:
         return False, f"Registration error: {str(e)}"
 
 
-def login_user_verify(username: str, password: str) -> tuple[bool, User | None]:
+def login_user_verify(username: str, password: str) -> tuple:
     """
     Verify user credentials for login.
     
@@ -150,7 +150,7 @@ def login_user_verify(username: str, password: str) -> tuple[bool, User | None]:
         password: Password to verify
         
     Returns:
-        Tuple of (success: bool, user: User | None)
+        Tuple of (success: bool, user: User or None)
     """
     if not username or not password:
         return False, None

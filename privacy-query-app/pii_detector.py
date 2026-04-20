@@ -4,7 +4,7 @@ Detects emails, phone numbers, credit cards, Aadhaar, PAN, passwords, etc.
 """
 
 import re
-from typing import Dict, List, Tuple
+from typing import Dict, List
 from enum import Enum
 
 
@@ -33,12 +33,12 @@ class RegexDetector:
         """Initialize regex patterns for various PII types."""
         self.patterns = {
             PIIType.EMAIL: re.compile(
-                r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+                r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b'
             ),
             
             PIIType.PHONE: re.compile(
-                r'(?:\+91[-]?|0)?[6-9]\d{9}\b|'  # Indian phone numbers
-                r'(?:\+1[-]?)?(?:\([0-9]{3}\))?[-]?[0-9]{3}[-]?[0-9]{4}\b'  # US format
+                r'\b(?:\+91[\-\s]?|0)?[6-9]\d{9}\b|'   # India (strict 10-digit starting 6-9)
+                r'\b(?:\+1[\-\s]?)?(?:\([2-9]\d{2}\)|[2-9]\d{2})[\-\s]?\d{3}[\-\s]?\d{4}\b'  # US (valid area code)
             ),
             
             PIIType.AADHAAR: re.compile(
@@ -70,11 +70,11 @@ class RegexDetector:
             ),
             
             PIIType.DATE_OF_BIRTH: re.compile(
-                r'\b(?:[0-3]?[0-9][-/])?(?:0?[1-9]|1[0-2])[-/](?:19|20)?\d{2}\b'
+                r'\b(?:[0-3]?[0-9][-/])?(?:0?[1-9]|1[0-2])[-/](?:19|20)\d{2}\b'
             ),
             
             PIIType.SSN: re.compile(
-                r'\b(?!000|666|9)\d{3}-?\d{2}-?\d{4}\b'
+                r'\b(?!000-|666-)(?!9\d{2})\d{3}-?\d{2}-?\d{4}\b'
             ),
         }
     
@@ -245,6 +245,10 @@ class PII_Masker:
     def get_mapping(self) -> Dict[str, str]:
         """Get current mask mapping."""
         return self.mask_map.copy()
+    
+    def get_reverse_mapping(self) -> Dict[str, str]:
+        """Get reverse mapping (masked -> original)."""
+        return self.unmask_map.copy()
     
     def clear(self):
         """Clear all mappings."""
